@@ -1,7 +1,7 @@
 {
   "trace_config": {
     "trace_dir": "traces/",
-    "trace_file": "enter_trace_file_name_here"
+    "trace_file": "bfs-10.txt"
   },
 
   "system_config": {
@@ -11,7 +11,8 @@
 
   "q_fetcher_config": {
     "signature_bits": 12,
-    "reward_table_entries": 256,
+    "signature_shift": 4,
+    "reward_table_entries": 1024,
     "entry_epoch" : 32,
     "alpha": 0.2,
     "gamma": 0.9,
@@ -20,6 +21,7 @@
 
   "output_config": {
     "output_dir": "output",
-    "output_file": "predictions.txt"
+    "output_pred_file": "predictions.txt",
+    "output_q_file": "q_values_predictions.txt"
   }
 }

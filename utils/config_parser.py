@@ -24,6 +24,8 @@ class ConfigParser:
         config_file = None
         parsed_config = None
 
+        print(f'Trying to parse {self.config_file} ... ')
+
         try:
             config_file = open(self.config_file_path, 'r')
         except FileNotFoundError:
@@ -38,8 +40,10 @@ class ConfigParser:
             print(f'Error parsing the config file ({self.config_file})')
 
         # Now save the obtained values as object variables
-        for key, value in parsed_config:
+        for key, value in parsed_config.items():
             setattr(self, key, value)
+
+        print(f'Parsing {self.config_file} successful ... ')
 
     def get_trace_config(self):
         return getattr(self, self.trace_config_key)

@@ -15,10 +15,12 @@ if __name__ == '__main__':
     parser = ConfigParser(CONFIG_JSON)
     parser.parse()
 
-    ip_trace, load_trace = PreprocessLoadTrace(**parser.get_trace_config(), **parser.get_system_config())
+    trace_preprocessor = PreprocessLoadTrace(**parser.get_trace_config(), **parser.get_system_config())
     prefetcher = QFetcher(**parser.get_q_fetcher_config(),
                           **parser.get_system_config(),
                           **parser.get_output_config())
+
+    ip_trace, load_trace = trace_preprocessor.preprocess()
 
     prefetcher.initialize()
     prefetcher.start(ip_trace, load_trace)

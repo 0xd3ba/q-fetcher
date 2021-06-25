@@ -24,8 +24,8 @@ from utils.replacement_policy import LRU
 ################################################
 # Rewards to be issued for a hit in this table
 # and miss in this table
-REWARD_HIT = 2
-REWARD_PSEUDO_HIT = 1
+REWARD_HIT = 16
+REWARD_PSEUDO_HIT = 8
 REWARD_MISS = -1
 
 # Columns in the reward table (see the class
@@ -61,12 +61,14 @@ class RewardTrackerTable:
     def __init__(self,
                  n_entries,
                  steps_per_entry,
+                 delta_q_table,
                  hit_reward=REWARD_HIT,
                  semi_hit_reward=REWARD_PSEUDO_HIT,
                  miss_reward=REWARD_MISS):
 
         self.n_entries = n_entries
         self.steps_per_entry = steps_per_entry
+        self.delta_q_table = delta_q_table
         self.reward_hit = hit_reward
         self.reward_miss = miss_reward
         self.reward_semi_hit = semi_hit_reward
@@ -159,8 +161,8 @@ class RewardTrackerTable:
             delta = entry[self._delta_idx]
             reward = entry[self._reward_idx]
 
-            # TODO: Update the Q-table with the values appropriately
-            # TODO: Move this task to a method of deltaQ-table
+            # Update the corresponding entries in the deltaQ-table
+            self.delta_q_table.update(delta_sig, delta, reward)
 
         # Finally reset the valid bit
         self.reward_table[invalid_entries_ids_mask, self._valid_bit_idx] = 0
@@ -201,9 +203,10 @@ class RewardTrackerTable:
                 self.reward_table[entry_matches_mask, self._reward_idx] -= self.reward_miss  # To cancel out previous reward
                 # TODO: Do we need to update the timestamp for these entries ?
 
-            # TODO: Update the Q-table with the values of the victim appropriately
+            self.delta_q_table.update(self.reward_table[victim_entry_idx, self._delta_sig_idx],
+                                      self.reward_table[victim_entry_idx, self._delta_idx],
+                                      self.reward_table[victim_entry_idx, self._reward_idx])
             # Finally, replace the entry
-
             self.reward_table[victim_entry_idx, self._pref_addr_idx] = pref_addr
             self.reward_table[victim_entry_idx, self._delta_idx] = delta
             self.reward_table[victim_entry_idx, self._delta_sig_idx] = delta_signature
