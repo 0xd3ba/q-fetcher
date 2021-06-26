@@ -109,7 +109,7 @@ class RewardTrackerTable:
 
         # Look if there is a match and whether it is valid
         pref_matches = (self.reward_table[:, self._pref_addr_idx] == load_addr)
-        delta_matches = (self.reward_table[:, self._delta_sig_idx] == delta_signature)
+        delta_sig_matches = (self.reward_table[:, self._delta_sig_idx] == delta_signature)
 
         valid_entries = (self.reward_table[:, self._valid_bit_idx] > 0)  # Select all those entries with valid bit set
 
@@ -118,11 +118,11 @@ class RewardTrackerTable:
         # The second case arises when the address was prefetched using *ANY* delta signature
         # The third case arises when the address was prefetched using different signatures and is currently present here
         entry_matches = np.logical_and(pref_matches, valid_entries)
-        entry_and_delta_matches = np.logical_and(entry_matches, delta_matches)
+        entry_and_delta_sig_matches = np.logical_and(entry_matches, delta_sig_matches)
 
         entry_found = (entry_matches.sum() > 0)
 
-        return entry_found, entry_matches, entry_and_delta_matches
+        return entry_found, entry_matches, entry_and_delta_sig_matches
 
     def _increment_ticks(self):
         """ Increments the logical clock for each entry """
@@ -167,6 +167,38 @@ class RewardTrackerTable:
         # Finally reset the valid bit
         self.reward_table[invalid_entries_ids_mask, self._valid_bit_idx] = 0
 
+    def _issue_rewards(self, entry_found, all_matches, all_with_delta_sig_matches):
+        """ Issues rewards accordingly """
+        all_valid_entries = (self.reward_table[:, self._valid_bit_idx] > 0)
+        self.reward_table[all_valid_entries, self._reward_idx] += self.reward_miss  # Penalize all valid entries
+        self.reward_table[all_matches, self._reward_idx] -= self.reward_miss  # Cancel out penalty on those that matched
+
+        # Get only the matches that match in addresses, but do not match delta signatures
+        all_matches = np.logical_xor(all_matches, all_with_delta_sig_matches)
+
+        if entry_found:
+            if all_with_delta_sig_matches.sum() > 0:
+                self._update_existing(all_with_delta_sig_matches)
+
+            self.reward_table[all_matches, self._reward_idx] += self.reward_semi_hit
+            # TODO: Do we need to update the timestamp for these entries ?
+
+    def check_n_give_reward(self, load_addr, delta_signature):
+        """
+        Checks if a load address has been already prefetched previously
+        NOTE: Only to be used when there is a page-change. This does not insert a new entry
+        """
+        entry_found, all_matches, delta_sig_matches = self._lookup(load_addr, delta_signature)
+
+        # If the entry was not found, then it would be wrong to penalize all other entries because
+        # we do not know if cache blocks from this page was previously fetched or not (well, didn't implement that ._.)
+        # So no need for penalizing (for now ;) )
+        if not entry_found:
+            return
+
+        self._issue_rewards(entry_found, all_matches, delta_sig_matches)
+
+
     def insert(self, pref_addr, delta, delta_signature):
         """
         Inserts an entry into the table. There are two cases that can happen
@@ -176,33 +208,19 @@ class RewardTrackerTable:
         self._invalidate_entries()  # Invalidate entries, if any
         self._increment_steps()     # Increment the steps
 
-        addr_found, entry_matches_mask, entry_and_delta_matches_mask = self._lookup(pref_addr, delta_signature)
+        addr_found, entry_matches_mask, entry_and_delta_sig_matches_mask = self._lookup(pref_addr, delta_signature)
 
-        assert entry_and_delta_matches_mask.sum() <= 1, f"ERROR: Multiple matches for {pref_addr} {delta_signature} found"
-
-        imperfect_matches_mask = np.logical_xor(entry_matches_mask, entry_and_delta_matches_mask)
-        perfect_match_found = (entry_and_delta_matches_mask.sum() > 0)
-        need_to_give_semi_hit_rewards = (imperfect_matches_mask.sum() > 0)
+        assert entry_and_delta_sig_matches_mask.sum() <= 1, f"ERROR: Multiple matches for {pref_addr} {delta_signature} found"
 
         # Replacement will be done, only when necessary. Else this variable remains unused
         victim_entry_idx = self.replacement_policy.find_victim(self.reward_table[:, self._time_idx],
                                                                self.reward_table[:, self._valid_bit_idx])
 
-        self.reward_table[:, self._reward_idx] += self.reward_miss  # Penalize all the other entries
+        self._issue_rewards(addr_found, entry_matches_mask, entry_and_delta_sig_matches_mask)
 
-        if perfect_match_found:
-            self._update_existing(entry_and_delta_matches_mask)
-            self.reward_table[entry_and_delta_matches_mask, self._reward_idx] -= self.reward_miss
-
-        # Either no entry found or there exists at least one entry with the matched prefetched address
-        # But it is not a perfect match, i.e. although the prefetch address matched, the delta signature
-        # is different
-        else:
-            if addr_found:  # Address found but delta signature didn't match
-                self.reward_table[entry_matches_mask, self._reward_idx] += self.reward_semi_hit
-                self.reward_table[entry_matches_mask, self._reward_idx] -= self.reward_miss  # To cancel out previous reward
-                # TODO: Do we need to update the timestamp for these entries ?
-
+        # If we didn't find a perfect match, we need to allocate an entry and insert it
+        # The victim entry needs to be written back to the delta-Q table, if it is a valid entry
+        if entry_and_delta_sig_matches_mask.sum() == 0:
             self.delta_q_table.update(self.reward_table[victim_entry_idx, self._delta_sig_idx],
                                       self.reward_table[victim_entry_idx, self._delta_idx],
                                       self.reward_table[victim_entry_idx, self._reward_idx])

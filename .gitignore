@@ -1,3 +1,9 @@
+# Trace files. Too big for github
+traces/
+
+# Output files. Not needed
+output/
+
 # MacOS files
 .DS_Store
 

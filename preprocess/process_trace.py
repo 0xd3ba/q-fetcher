@@ -76,7 +76,7 @@ class PreprocessLoadTrace:
         trace_load_seq = trace_df[self.load_address].apply(self.address_preprocess.preprocess).values
         trace_ip_seq = trace_df[self.ip_address].values
 
-        print('Preprocessing done ... ')
+        print(f'Preprocessing done ... {trace_ip_seq.shape[0]} addresses in total.')
         # NOTE: The load address column has all the values as tuples of the form
         #                           (address, tag, block_id)
         return trace_ip_seq, trace_load_seq

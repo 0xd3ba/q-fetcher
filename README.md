@@ -6,7 +6,7 @@ whose usage frequency would be the most in the near future. It does not require 
 on the fly, i.e. online. 
 It borrows ideas from [Signature Path Prefetcher (SPP)](https://ieeexplore.ieee.org/document/7783763)
 and [Instruction Pointer Classifier-based Spatial Hardware Prefetching (IPCP)](https://ieeexplore.ieee.org/document/9138971)
-to represent the sequence of *deltas* (difference between cache block # of consecutive addresses) as compressed
+to represent the sequence of *deltas* (difference between cache block # of consecutive accesses) as compressed
 fixed-width *signatures*. 
 
 **NOTE:** This was supposed to be a submission for 
@@ -27,11 +27,11 @@ website [here](https://sites.google.com/view/mlarchsys/isca-2021/ml-prefetching-
 - Install the dependencies: `pip3 install requirement.txt`
 - Place the appropriate trace file(s) into `q-fetcher/traces/` directory, as mentioned above
 - (Optional) Change the parameters inside `q-fetcher/config.json` file related to the prefetcher
-- Execute `main.py` to start the prefetcher: `python3 main.py`
+- Execute `q-fetcher/main.py` to start the prefetcher: `python3 main.py`
 
 ## Output
 The output files will be stored to `q-fetcher/output/*.txt` and will replace previous files
-(unless the name is changed inside `config.json`). The output files consist of
+(unless the name is changed inside `q-fetcher/config.json`). The output files consist of
 1. Prefetch Addresses, in the format as specified in the competition's website.
 2. Q-values of the corresponding prefetched addresses, just for the sake of debugging.
 

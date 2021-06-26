@@ -15,7 +15,7 @@
     "reward_table_entries": 1024,
     "entry_epoch" : 32,
     "alpha": 0.2,
-    "gamma": 0.9,
+    "gamma": 0.99,
     "epsilon": 0.1
   },
 
