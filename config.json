@@ -1,7 +1,7 @@
 {
   "trace_config": {
     "trace_dir": "traces/",
-    "trace_file": "bfs-10.txt"
+    "trace_file": "623.xalancbmk-s4.txt"
   },
 
   "system_config": {
@@ -21,7 +21,7 @@
 
   "output_config": {
     "output_dir": "output",
-    "output_pred_file": "predictions.txt",
-    "output_q_file": "q_values_predictions.txt"
+    "output_pred_file": "623.xalancbmk-s4_predictions.txt",
+    "output_q_file": "623.xalancbmk-s4_q_values.txt"
   }
 }

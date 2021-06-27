@@ -87,7 +87,7 @@ class QFetcher:
                 self.check_if_prefetched(curr_load_addr, delta_signature)
             else:
                 delta_signature = self.signature_hasher.next_signature(delta_signature, delta)
-                self.issue_prefetch(curr_ip, curr_load_addr, delta_signature)
+                self.issue_prefetch(curr_ip, curr_load_addr, curr_cache_blk, delta_signature)
 
             prev_load_tag = curr_load_tag
             prev_cache_blk = curr_cache_blk
@@ -96,7 +96,7 @@ class QFetcher:
         """ Checks if a particular load address that lead to a page change was prefetched previously """
         self.reward_tracker_table.check_n_give_reward(load_addr, delta_signature)
 
-    def issue_prefetch(self, curr_ip, curr_load_addr, delta_signature):
+    def issue_prefetch(self, curr_ip, curr_load_addr, curr_cache_blk, delta_signature):
         """ Issues the specified number of prefetch requests """
 
         # For the time-being, issue only a single prefetch request
@@ -107,13 +107,16 @@ class QFetcher:
         delta_idx, delta_next, offset = self.delta_q_table.get_next_offset(delta_signature)
         pref_addr = curr_load_addr + offset
 
+        invalid_prefetch = (delta_next + curr_cache_blk > self.delta_q_table.largest_delta) or \
+                           (delta_next + curr_cache_blk < 0)
+
         # Insert the prefetch request into the reward tracker table
-        self.reward_tracker_table.insert(pref_addr, delta_next, delta_signature)
+        self.reward_tracker_table.insert(pref_addr, delta_next, delta_signature, invalid_prefetch)
 
         # The address should not have the '0x' prefix which is present in hexadecimal notations
         pref_addr_hex = hex(pref_addr).split('0x')[-1]
-        self.output_writer.write(curr_ip, pref_addr_hex, self.delta_q_table.delta_q_table[delta_signature, delta_idx])
-
+        if not invalid_prefetch:
+            self.output_writer.write(curr_ip, pref_addr_hex, self.delta_q_table.delta_q_table[delta_signature, delta_idx])
 
     def stop(self):
         """ Marks the end of prefetching process. Does the required cleanup """

@@ -50,12 +50,12 @@ class PreprocessLoadTrace:
         # Doesn't matter what we name them, all we need is the dataframe column corresponding to
         # the target load/store address and the corresponding instruction pointer
         self.load_address = 'load_address'
-        self.ip_address = 'ip_load'
+        self.ip_address = 'instruction_id'
 
-        self.columns = ['instruction_id',
+        self.columns = [self.ip_address,
                         'cycle_count',
                         self.load_address,
-                        self.ip_address,
+                        'load_ip',
                         'llc_hit_miss']
 
     def preprocess(self):

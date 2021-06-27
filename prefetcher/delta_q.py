@@ -11,6 +11,8 @@
 #       - In backward direction: 63 -> 0  --page jump--> 63 --> 0, total offset = -63 -1 -63 = -127
 #
 # Hence, the number of offsets = (4 * n_blocks_per_page) - 1
+# BUT, there is no point in trying to fetch a block at offsets not in the range [-63, 63] because we don't
+# know the physical address of the next page, so the valid deltas are still [-63, 63]
 
 import numpy as np
 from utils.signature_hash import SignatureHash
@@ -49,14 +51,14 @@ class DeltaQTable:
         assert signature_bits > 1, f"Signature bits must be > 1. Given {signature_bits} instead"
 
         self.n_cache_blks_per_page = page_size_bytes // cache_line_size_bytes
-        self.n_cache_line_offsets = (4 * self.n_cache_blks_per_page) - 1
+        self.n_cache_line_offsets = (2 * self.n_cache_blks_per_page) - 1
         self.n_delta_q_entries = 1 << signature_bits
         self._create()  # Create the table
 
-        self._largest_delta = (2 * self.n_cache_blks_per_page) - 1
-        self._least_delta = -self._largest_delta    # Need this value for proper column indexing
+        self.largest_delta = self.n_cache_blks_per_page - 1
+        self.least_delta = -self.largest_delta    # Need this value for proper column indexing
 
-        self.signature_hasher = SignatureHash(signature_bits, signature_shift, self._largest_delta)
+        self.signature_hasher = SignatureHash(signature_bits, signature_shift, self.largest_delta)
 
     def _create(self):
         """ Creates the delta table based on the parameters """
@@ -64,11 +66,11 @@ class DeltaQTable:
 
     def _get_column_index(self, delta):
         """ Returns the index of the column for the given delta """
-        return delta - self._least_delta
+        return delta - self.least_delta
 
     def _get_delta_from_idx(self, col_idx):
         """ Returns the offset for the given column index """
-        return col_idx + self._least_delta
+        return col_idx + self.least_delta
 
     def get_next_offset(self, delta_signature):
         """ Returns the offset for the current signature """

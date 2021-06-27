@@ -23,5 +23,5 @@ if __name__ == '__main__':
     ip_trace, load_trace = trace_preprocessor.preprocess()
 
     prefetcher.initialize()
-    prefetcher.start(ip_trace[:100_000], load_trace[:100_000])
+    prefetcher.start(ip_trace, load_trace)
     prefetcher.stop()

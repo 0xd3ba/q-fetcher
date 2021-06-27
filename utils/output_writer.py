@@ -43,7 +43,7 @@ class OutputWriter:
     def close(self):
         """ Marks the end of output generation by dumping the contents into the files and closing them """
         for instr_id, prefetch_addr in self.pred_buffer:
-            self.opened_output_file.write(f'{instr_id.strip()} {prefetch_addr.strip()}\n')
+            self.opened_output_file.write(f'{instr_id} {prefetch_addr.strip()}\n')
 
         for q_val in self.q_buffer:
             self.opened_q_val_file.write(f'{q_val}\n')

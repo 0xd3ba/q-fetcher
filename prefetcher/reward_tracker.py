@@ -27,6 +27,7 @@ from utils.replacement_policy import LRU
 REWARD_HIT = 16
 REWARD_PSEUDO_HIT = 8
 REWARD_MISS = -1
+REWARD_SEVERE_PENALTY = -100
 
 # Columns in the reward table (see the class
 # description below). In case a new column needs
@@ -64,7 +65,8 @@ class RewardTrackerTable:
                  delta_q_table,
                  hit_reward=REWARD_HIT,
                  semi_hit_reward=REWARD_PSEUDO_HIT,
-                 miss_reward=REWARD_MISS):
+                 miss_reward=REWARD_MISS,
+                 penalty_reward=REWARD_SEVERE_PENALTY):
 
         self.n_entries = n_entries
         self.steps_per_entry = steps_per_entry
@@ -72,6 +74,7 @@ class RewardTrackerTable:
         self.reward_hit = hit_reward
         self.reward_miss = miss_reward
         self.reward_semi_hit = semi_hit_reward
+        self.reward_severe_penalty = penalty_reward
         self.columns_list = REWARD_TABLE_COLUMNS_LIST
         self.logical_clock = 0
 
@@ -198,8 +201,7 @@ class RewardTrackerTable:
 
         self._issue_rewards(entry_found, all_matches, delta_sig_matches)
 
-
-    def insert(self, pref_addr, delta, delta_signature):
+    def insert(self, pref_addr, delta, delta_signature, invalid_prefetch_flag):
         """
         Inserts an entry into the table. There are two cases that can happen
             1. There is already an entry with matching delta and delta signature
@@ -216,7 +218,11 @@ class RewardTrackerTable:
         victim_entry_idx = self.replacement_policy.find_victim(self.reward_table[:, self._time_idx],
                                                                self.reward_table[:, self._valid_bit_idx])
 
-        self._issue_rewards(addr_found, entry_matches_mask, entry_and_delta_sig_matches_mask)
+        # We don't need to penalize other entries if this prefetch was an invalid one
+        # i.e. the prefetcher sent an invalid address to be prefetched (one that crosses page boundaries)
+        # This will happen during exploration most of the time
+        if not invalid_prefetch_flag:
+            self._issue_rewards(addr_found, entry_matches_mask, entry_and_delta_sig_matches_mask)
 
         # If we didn't find a perfect match, we need to allocate an entry and insert it
         # The victim entry needs to be written back to the delta-Q table, if it is a valid entry
@@ -231,6 +237,9 @@ class RewardTrackerTable:
             self.reward_table[victim_entry_idx, self._step_idx] = 0
             self.reward_table[victim_entry_idx, self._time_idx] = self.logical_clock
             self.reward_table[victim_entry_idx, self._valid_bit_idx] = 1
-            self.reward_table[victim_entry_idx, self._reward_idx] = self.reward_hit
+
+            # Change the reward to give, depending on the whether or not the prefetch request was a valid one
+            reward_to_give = self.reward_severe_penalty if invalid_prefetch_flag else self.reward_hit
+            self.reward_table[victim_entry_idx, self._reward_idx] = reward_to_give
 
         self._increment_ticks()     # Increment the logical clock
