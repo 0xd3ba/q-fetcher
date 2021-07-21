@@ -16,18 +16,23 @@ class PreprocessAddress:
         self.page_size = page_size
         self.cache_line_size = cache_line_size
 
+        self.offset_bits = int(np.log2(cache_line_size))
+        self.page_bits = int(np.log2(page_size))
+        self.block_bits = self.page_bits - self.offset_bits
+        self.block_mask = int('0b' + ('1' * self.block_bits), base=2)
+
+        # Some sanity checks
+        assert self.block_bits > 0, f"Invalid cache line size: {cache_line_size}"
+        assert self.page_bits > 0, f"Invalid page size: {page_size}"
+        assert cache_line_size <= page_size, \
+            f"Block size ({cache_line_size}) is greater than page size ({page_size}) "
+
     def preprocess(self, address):
         """ Splits the given address (as a hexadecimal string) """
-        block_bits = int(np.log2(self.cache_line_size))
-        page_bits = int(np.log2(self.page_size))
-
-        assert block_bits > 0, f"Invalid cache line size: {self.cache_line_size}"
-
         address_int = int(address, base=16)
-        block_mask = int('0b' + ('1' * block_bits), base=2)
 
-        block_id = address_int & block_mask
-        tag_id = address_int >> page_bits
+        block_id = (address_int >> self.offset_bits) & self.block_mask  # Extract out the block ID
+        tag_id = address_int >> self.page_bits  # Extract out the tag
 
         return address_int, tag_id, block_id
 
